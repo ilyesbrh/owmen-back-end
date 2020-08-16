@@ -42,8 +42,8 @@ export class Client extends Entity {
   }
 }
 
-export interface UserRelations {
+export interface ClientRelations {
   // describe navigational properties here
 }
 
-export type UserWithRelations = Client & UserRelations;
+export type ClientWithRelations = Client & ClientRelations;

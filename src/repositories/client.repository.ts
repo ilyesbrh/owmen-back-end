@@ -1,13 +1,13 @@
 import {Getter, inject} from '@loopback/core';
 import {DefaultCrudRepository, HasManyRepositoryFactory, repository} from '@loopback/repository';
 import {MysqlDbDataSource} from '../datasources';
-import {Client, Transaction, UserRelations} from '../models';
+import {Client, ClientRelations, Transaction} from '../models';
 import {TransactionRepository} from './transaction.repository';
 
 export class ClientRepository extends DefaultCrudRepository<
   Client,
   typeof Client.prototype.id,
-  UserRelations
+  ClientRelations
   > {
 
   public readonly transactions: HasManyRepositoryFactory<Transaction, typeof Client.prototype.id>;

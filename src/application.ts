@@ -1,17 +1,21 @@
-import {AuthenticationComponent} from '@loopback/authentication';
-import {JWTAuthenticationComponent, UserServiceBindings} from '@loopback/authentication-jwt';
+import {AuthenticationComponent, registerAuthenticationStrategy} from '@loopback/authentication';
+import {JWTAuthenticationComponent, JWTAuthenticationStrategy, SECURITY_SCHEME_SPEC, UserServiceBindings} from '@loopback/authentication-jwt';
+import {AuthorizationComponent} from '@loopback/authorization';
 import {BootMixin} from '@loopback/boot';
-import {ApplicationConfig} from '@loopback/core';
+import {ApplicationConfig, createBindingFromClass} from '@loopback/core';
 import {RepositoryMixin} from '@loopback/repository';
-import {RestApplication} from '@loopback/rest';
+import {OpenApiSpec, RestApplication} from '@loopback/rest';
 import {
   RestExplorerBindings,
   RestExplorerComponent
 } from '@loopback/rest-explorer';
 import {ServiceMixin} from '@loopback/service-proxy';
 import path from 'path';
-import {MysqlDbDataSource} from './datasources/mysql-db.datasource';
+import {PasswordHasherBindings, TokenServiceBindings, TokenServiceConstants} from './key';
 import {MySequence} from './sequence';
+import {BcryptHasher, JWTService, MyUserService} from './services';
+import {SECURITY_SPEC} from './utils/security-spec';
+
 
 
 export {ApplicationConfig};
@@ -36,10 +40,15 @@ export class OwmenApplication extends BootMixin(
 
     // Mount authentication system
     this.component(AuthenticationComponent);
+    this.component(AuthorizationComponent);
+
     // Mount jwt component
     this.component(JWTAuthenticationComponent);
+
+    this.add(createBindingFromClass(JWTAuthenticationStrategy));
+    registerAuthenticationStrategy(this, JWTAuthenticationStrategy);
     // Bind datasource
-    this.dataSource(MysqlDbDataSource, UserServiceBindings.DATASOURCE_NAME);
+    this.setUpBindings();
 
     this.projectRoot = __dirname;
     // Customize @loopback/boot Booter Conventions here
@@ -51,5 +60,37 @@ export class OwmenApplication extends BootMixin(
         nested: true,
       },
     };
+
+    const spec: OpenApiSpec = {
+      openapi: '3.0.0',
+      info: {title: 'pkg.name', version: 'pkg.version'},
+      paths: {},
+      components: {securitySchemes: SECURITY_SCHEME_SPEC},
+      servers: [{url: '/api'}],
+      security: SECURITY_SPEC,
+    };
+    this.api(spec);
+  }
+
+  private setUpBindings(): void {
+
+    // Bind package.json to the application context
+    // this.bind(PackageKey).to(pkg);
+
+    this.bind(TokenServiceBindings.TOKEN_SECRET).to(
+      TokenServiceConstants.TOKEN_SECRET_VALUE,
+    );
+
+    this.bind(TokenServiceBindings.TOKEN_EXPIRES_IN).to(
+      TokenServiceConstants.TOKEN_EXPIRES_IN_VALUE,
+    );
+
+    this.bind(TokenServiceBindings.TOKEN_SERVICE).toClass(JWTService);
+
+    // // Bind bcrypt hash services
+    this.bind(PasswordHasherBindings.ROUNDS).to(10);
+    this.bind(PasswordHasherBindings.PASSWORD_HASHER).toClass(BcryptHasher);
+
+    this.bind(UserServiceBindings.USER_SERVICE).toClass(MyUserService);
   }
 }

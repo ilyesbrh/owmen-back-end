@@ -1,9 +1,11 @@
-
 import {authenticate} from '@loopback/authentication';
+import {authorize} from '@loopback/authorization';
 import {Count, CountSchema, Filter, FilterExcludingWhere, repository, Where} from '@loopback/repository';
 import {del, get, getModelSchemaRef, param, patch, post, put, requestBody} from '@loopback/rest';
+import {basicAuthorization} from '../middlewares/auth.midd';
 import {Client} from '../models';
 import {ClientRepository} from '../repositories';
+
 
 @authenticate('jwt') // <---- Apply the @authenticate decorator at the class level
 
@@ -14,6 +16,11 @@ export class ClientController {
     public userRepository: ClientRepository,
   ) {}
 
+  @authenticate('jwt')
+  @authorize({
+    allowedRoles: ['user', 'admin'],
+    voters: [basicAuthorization],
+  })
   @post('/users', {
     responses: {
       '200': {

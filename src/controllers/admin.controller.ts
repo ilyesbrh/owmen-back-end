@@ -1,11 +1,18 @@
-import {authenticate, TokenService} from '@loopback/authentication';
-import {Credentials, MyUserService, TokenServiceBindings, User, UserRepository, UserServiceBindings} from '@loopback/authentication-jwt';
+import {authenticate, TokenService, UserService} from '@loopback/authentication';
+import {authorize} from '@loopback/authorization';
 import {inject} from '@loopback/core';
 import {model, property, repository} from '@loopback/repository';
-import {get, getModelSchemaRef, post, requestBody} from '@loopback/rest';
+import {get, HttpErrors, param, post, requestBody} from '@loopback/rest';
 import {SecurityBindings, securityId, UserProfile} from '@loopback/security';
-import {genSalt, hash} from 'bcryptjs';
 import _ from 'lodash';
+import {PasswordHasherBindings, TokenServiceBindings, UserServiceBindings} from '../key';
+import {basicAuthorization} from '../middlewares/auth.midd';
+import {User} from '../models';
+import {Credentials, UserRepository} from '../repositories';
+import {PasswordHasher, validateCredentials} from '../services';
+import {CredentialsRequestBody, UserProfileSchema} from './specs/user-controller.specs';
+
+
 @model()
 export class NewUserRequest extends User {
   @property({
@@ -14,41 +21,163 @@ export class NewUserRequest extends User {
   })
   password: string;
 }
-
-const CredentialsSchema = {
-  type: 'object',
-  required: ['email', 'password'],
-  properties: {
-    email: {
-      type: 'string',
-      format: 'email',
-    },
-    password: {
-      type: 'string',
-      minLength: 8,
-    },
-  },
-};
-
-export const CredentialsRequestBody = {
-  description: 'The input of login function',
-  required: true,
-  content: {
-    'application/json': {schema: CredentialsSchema},
-  },
-};
-
 export class AdminController {
   constructor(
+    @repository(UserRepository) public userRepository: UserRepository,
+    @inject(PasswordHasherBindings.PASSWORD_HASHER)
+    public passwordHasher: PasswordHasher,
     @inject(TokenServiceBindings.TOKEN_SERVICE)
     public jwtService: TokenService,
     @inject(UserServiceBindings.USER_SERVICE)
-    public userService: MyUserService,
-    @inject(SecurityBindings.USER, {optional: true})
-    public user: UserProfile,
-    @repository(UserRepository) protected userRepository: UserRepository,
-  ) {}
+    public userService: UserService<User, Credentials>,
+  ) {
+  }
 
+  @post('/users/sign-up', {
+    responses: {
+      '200': {
+        description: 'User',
+        content: {
+          'application/json': {
+            schema: {
+              'x-ts-type': User,
+            },
+          },
+        },
+      },
+    },
+  })
+  async create(
+    @requestBody(CredentialsRequestBody)
+    newUserRequest: Credentials,
+  ): Promise<User> {
+    newUserRequest.role = 'user';
+
+    // ensure a valid email value and password value
+    validateCredentials(_.pick(newUserRequest, ['email', 'password']));
+
+    // encrypt the password
+    const password = await this.passwordHasher.hashPassword(
+      newUserRequest.password,
+    );
+
+    try {
+      // create the new user
+      const savedUser = await this.userRepository.create(
+        _.omit(newUserRequest, 'password'),
+      );
+
+      // set the password
+      await this.userRepository
+        .userCredentials(savedUser.id)
+        .create({password});
+
+      return savedUser;
+    } catch (error) {
+      // MongoError 11000 duplicate key
+      if (error.code === 11000 && error.errmsg.includes('index: uniqueEmail')) {
+        throw new HttpErrors.Conflict('Email value is already taken');
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  @post('/users/sign-up/admin', {
+    responses: {
+      '200': {
+        description: 'User',
+        content: {
+          'application/json': {
+            schema: {
+              'x-ts-type': User,
+            },
+          },
+        },
+      },
+    },
+  })
+  async createAdmin(
+    @requestBody(CredentialsRequestBody)
+    newUserRequest: Credentials,
+  ): Promise<User> {
+    // All new users have the "customer" role by default
+    newUserRequest.role = 'admin';
+    // ensure a valid email value and password value
+    validateCredentials(_.pick(newUserRequest, ['email', 'password']));
+
+    // encrypt the password
+    const password = await this.passwordHasher.hashPassword(
+      newUserRequest.password,
+    );
+
+    try {
+      // create the new user
+      const savedUser = await this.userRepository.create(
+        _.omit(newUserRequest, 'password'),
+      );
+
+      // set the password
+      await this.userRepository
+        .userCredentials(savedUser.id)
+        .create({password});
+
+      return savedUser;
+    } catch (error) {
+      // MongoError 11000 duplicate key
+      if (error.code === 11000 && error.errmsg.includes('index: uniqueEmail')) {
+        throw new HttpErrors.Conflict('Email value is already taken');
+      } else {
+        throw error;
+      }
+    }
+  }
+
+
+  @get('/users/{userId}', {
+    responses: {
+      '200': {
+        description: 'User',
+        content: {
+          'application/json': {
+            schema: {
+              'x-ts-type': User,
+            },
+          },
+        },
+      },
+    },
+  })
+  @authenticate('jwt')
+  @authorize({
+    allowedRoles: ['admin'],
+    voters: [basicAuthorization],
+  })
+  async findById(@param.path.string('userId') userId: string): Promise<User> {
+    return this.userRepository.findById(userId);
+  }
+
+  @get('/users/me', {
+    responses: {
+      '200': {
+        description: 'The current user profile',
+        content: {
+          'application/json': {
+            schema: UserProfileSchema,
+          },
+        },
+      },
+    },
+  })
+  @authenticate('jwt')
+  async printCurrentUser(
+    @inject(SecurityBindings.USER)
+    currentUserProfile: UserProfile,
+  ): Promise<User> {
+
+    const userId = currentUserProfile[securityId];
+    return this.userRepository.findById(userId);
+  }
 
   @post('/users/login', {
     responses: {
@@ -74,65 +203,13 @@ export class AdminController {
   ): Promise<{token: string}> {
     // ensure the user exists, and the password is correct
     const user = await this.userService.verifyCredentials(credentials);
+
     // convert a User object into a UserProfile object (reduced set of properties)
     const userProfile = this.userService.convertToUserProfile(user);
 
     // create a JSON Web Token based on the user profile
     const token = await this.jwtService.generateToken(userProfile);
+
     return {token};
-  }
-
-  @authenticate('jwt')
-  @get('/whoAmI', {
-    responses: {
-      '200': {
-        description: '',
-        schema: {
-          type: 'string',
-        },
-      },
-    },
-  })
-  async whoAmI(
-    @inject(SecurityBindings.USER)
-    currentUserProfile: UserProfile,
-  ): Promise<string> {
-    return currentUserProfile[securityId];
-  }
-
-  @post('/signup', {
-    responses: {
-      '200': {
-        description: 'User',
-        content: {
-          'application/json': {
-            schema: {
-              'x-ts-type': User,
-            },
-          },
-        },
-      },
-    },
-  })
-  async signUp(
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(NewUserRequest, {
-            title: 'NewUser',
-          }),
-        },
-      },
-    })
-    newUserRequest: NewUserRequest,
-  ): Promise<User> {
-    const password = await hash(newUserRequest.password, await genSalt());
-    const savedUser = await this.userRepository.create(
-      _.omit(newUserRequest, 'password'),
-    );
-
-    await this.userRepository.userCredentials(savedUser.id).create({password});
-
-    return savedUser;
   }
 }
