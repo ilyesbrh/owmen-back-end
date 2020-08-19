@@ -1,15 +1,15 @@
-import {DefaultCrudRepository} from '@loopback/repository';
-import {Transaction, TransactionRelations} from '../models';
-import {MysqlDbDataSource} from '../datasources';
 import {inject} from '@loopback/core';
+import {DefaultCrudRepository} from '@loopback/repository';
+import {PostegressConnectorDataSource} from '../datasources';
+import {Transaction, TransactionRelations} from '../models';
 
 export class TransactionRepository extends DefaultCrudRepository<
   Transaction,
   typeof Transaction.prototype.id,
   TransactionRelations
-> {
+  > {
   constructor(
-    @inject('datasources.mysqlDb') dataSource: MysqlDbDataSource,
+    @inject('datasources.postegressConnector') dataSource: PostegressConnectorDataSource,
   ) {
     super(Transaction, dataSource);
   }
