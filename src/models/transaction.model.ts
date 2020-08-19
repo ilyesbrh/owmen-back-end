@@ -11,19 +11,19 @@ export class Transaction extends Entity {
 
   @property({
     type: 'date',
-    required: true,
+    default: () => new Date()
   })
-  createdAt: string;
+  createdAt: Date;
   @property({
     type: 'string',
     required: true,
   })
   perfume: string;
   @property({
-    type: 'string',
+    type: 'number',
     required: true,
   })
-  value: string;
+  value: number;
 
   @property({
     type: 'number',

@@ -10,22 +10,15 @@ import {
   USER_PROFILE_NOT_FOUND
 } from '@loopback/authentication';
 import {inject} from '@loopback/context';
-import {
-  FindRoute,
-  InvokeMethod,
-
-  ParseParams,
-  Reject,
-  RequestContext,
-  RestBindings,
-  Send,
-  SequenceHandler
-} from '@loopback/rest';
+import {FindRoute, InvokeMethod, InvokeMiddleware, ParseParams, Reject, RequestContext, RestBindings, Send, SequenceHandler} from '@loopback/rest';
 
 const SequenceActions = RestBindings.SequenceActions;
 
 
 export class MySequence implements SequenceHandler {
+
+  @inject(SequenceActions.INVOKE_MIDDLEWARE, {optional: true})
+  protected invokeMiddleware: InvokeMiddleware = () => false;
 
   constructor(
     @inject(SequenceActions.FIND_ROUTE) protected findRoute: FindRoute,
@@ -39,12 +32,17 @@ export class MySequence implements SequenceHandler {
   ) {}
 
   async handle(context: RequestContext) {
+
+
     try {
       const {request, response} = context;
-      const route = this.findRoute(request);
       // - enable jwt auth -
       // call authentication action
       // ---------- ADD THIS LINE -------------
+      const finished = await this.invokeMiddleware(context);
+      if (finished) return;
+
+      const route = this.findRoute(request);
       await this.authenticateRequest(request);
       const args = await this.parseParams(request, route);
       const result = await this.invoke(route, args);

@@ -1,26 +1,30 @@
 import {authenticate} from '@loopback/authentication';
 import {authorize} from '@loopback/authorization';
+import {inject} from '@loopback/core';
 import {Count, CountSchema, Filter, FilterExcludingWhere, repository, Where} from '@loopback/repository';
 import {del, get, getModelSchemaRef, param, patch, post, put, requestBody} from '@loopback/rest';
+import {SecurityBindings} from '@loopback/security';
 import {basicAuthorization} from '../middlewares/auth.midd';
 import {Client} from '../models';
 import {ClientRepository} from '../repositories';
 
 
-@authenticate('jwt') // <---- Apply the @authenticate decorator at the class level
 
+
+@authenticate('jwt')
+@authorize({
+  allowedRoles: ['user'],
+  voters: [basicAuthorization],
+})
 export class ClientController {
   constructor(
-
+    @inject(SecurityBindings.USER, {optional: true})
+    public user: unknown,
     @repository(ClientRepository)
     public userRepository: ClientRepository,
   ) {}
 
-  @authenticate('jwt')
-  @authorize({
-    allowedRoles: ['user', 'admin'],
-    voters: [basicAuthorization],
-  })
+
   @post('/users', {
     responses: {
       '200': {

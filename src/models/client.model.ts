@@ -18,7 +18,7 @@ export class Client extends Entity {
 
   @property({
     type: 'date',
-    required: true,
+    default: () => new Date()
   })
   createdAt: string;
 

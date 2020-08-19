@@ -1,5 +1,6 @@
 import {TokenService, UserService} from '@loopback/authentication';
 import {BindingKey} from '@loopback/context';
+import {UserProfile} from '@loopback/security';
 import {User} from './models';
 import {Credentials} from './repositories';
 import {PasswordHasher} from './services';
@@ -18,6 +19,9 @@ export namespace TokenServiceBindings {
   );
   export const TOKEN_SERVICE = BindingKey.create<TokenService>(
     'services.authentication.jwt.tokenservice',
+  );
+  export const CURRENT_USER = BindingKey.create<UserProfile | undefined>(
+    'authentication.currentUser',
   );
 }
 

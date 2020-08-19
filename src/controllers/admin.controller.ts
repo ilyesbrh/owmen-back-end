@@ -157,6 +157,8 @@ export class AdminController {
     return this.userRepository.findById(userId);
   }
 
+
+  @authenticate('jwt')
   @get('/users/me', {
     responses: {
       '200': {
@@ -169,7 +171,6 @@ export class AdminController {
       },
     },
   })
-  @authenticate('jwt')
   async printCurrentUser(
     @inject(SecurityBindings.USER)
     currentUserProfile: UserProfile,

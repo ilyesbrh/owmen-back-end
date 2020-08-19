@@ -26,11 +26,8 @@ export class UserRepository extends DefaultCrudRepository<
   }
   async findCredentials(userId: typeof User.prototype.id): Promise<UserCredentials | undefined> {
     try {
-      console.log(userId);
 
       const uc = await this.userCredentials(userId).get();
-
-      console.log(uc);
 
       return uc;
     } catch (err) {

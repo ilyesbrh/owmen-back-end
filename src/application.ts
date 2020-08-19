@@ -5,10 +5,7 @@ import {BootMixin} from '@loopback/boot';
 import {ApplicationConfig, createBindingFromClass} from '@loopback/core';
 import {RepositoryMixin} from '@loopback/repository';
 import {OpenApiSpec, RestApplication} from '@loopback/rest';
-import {
-  RestExplorerBindings,
-  RestExplorerComponent
-} from '@loopback/rest-explorer';
+import {RestExplorerBindings, RestExplorerComponent} from '@loopback/rest-explorer';
 import {ServiceMixin} from '@loopback/service-proxy';
 import path from 'path';
 import {PasswordHasherBindings, TokenServiceBindings, TokenServiceConstants} from './key';

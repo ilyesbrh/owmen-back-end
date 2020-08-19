@@ -10,12 +10,14 @@ export async function basicAuthorization(
 ): Promise<AuthorizationDecision> {
   // No access if authorization details are missing
   let currentUser: UserProfile;
+
   if (authorizationCtx.principals.length > 0) {
     const user = _.pick(authorizationCtx.principals[0], [
       'id',
       'name',
       'role',
     ]);
+
     currentUser = {[securityId]: user.id, name: user.name, role: user.role};
   } else {
     return AuthorizationDecision.DENY;
@@ -31,6 +33,7 @@ export async function basicAuthorization(
   }
 
   let roleIsAllowed = false;
+
   if (metadata.allowedRoles!.includes(currentUser.role)) {
     roleIsAllowed = true;
   }

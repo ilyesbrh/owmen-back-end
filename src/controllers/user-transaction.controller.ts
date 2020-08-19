@@ -1,3 +1,5 @@
+import {authenticate} from '@loopback/authentication';
+import {authorize} from '@loopback/authorization';
 import {
   Count,
   CountSchema,
@@ -15,12 +17,18 @@ import {
   post,
   requestBody
 } from '@loopback/rest';
+import {basicAuthorization} from '../middlewares/auth.midd';
 import {Client, Transaction} from '../models';
 import {ClientRepository} from '../repositories';
 
+@authenticate('jwt')
+@authorize({
+  allowedRoles: ['user'],
+  voters: [basicAuthorization],
+})
 export class UserTransactionController {
   constructor(
-    @repository(ClientRepository) protected userRepository: ClientRepository,
+    @repository(ClientRepository) protected clientRepository: ClientRepository,
   ) {}
 
   @get('/users/{id}/transactions', {
@@ -39,7 +47,7 @@ export class UserTransactionController {
     @param.path.number('id') id: number,
     @param.query.object('filter') filter?: Filter<Transaction>,
   ): Promise<Transaction[]> {
-    return this.userRepository.transactions(id).find(filter);
+    return this.clientRepository.transactions(id).find(filter);
   }
 
   @post('/users/{id}/transactions', {
@@ -63,8 +71,28 @@ export class UserTransactionController {
         },
       },
     }) transaction: Omit<Transaction, 'id'>,
-  ): Promise<Transaction> {
-    return this.userRepository.transactions(id).create(transaction);
+  ): Promise<{count: number, average: number, transaction: Transaction}> {
+
+    console.log(transaction);
+
+    transaction = await this.clientRepository.transactions(id).create(transaction);
+
+    const client = await this.clientRepository.findById(id);
+
+    client.count = client.count ? client.count + 1 : 1;
+
+    if (!client.average || client.count === 0)
+      client.average = transaction.value;
+    else
+      client.average = (client.average + transaction.value) / 2;
+
+    if (client.count === 6) {
+      client.count = 0;
+    }
+
+    await this.clientRepository.update(client);
+
+    return {count: client.count, average: client.average, transaction};
   }
 
   @patch('/users/{id}/transactions', {
@@ -87,7 +115,7 @@ export class UserTransactionController {
     transaction: Partial<Transaction>,
     @param.query.object('where', getWhereSchemaFor(Transaction)) where?: Where<Transaction>,
   ): Promise<Count> {
-    return this.userRepository.transactions(id).patch(transaction, where);
+    return this.clientRepository.transactions(id).patch(transaction, where);
   }
 
   @del('/users/{id}/transactions', {
@@ -102,6 +130,6 @@ export class UserTransactionController {
     @param.path.number('id') id: number,
     @param.query.object('where', getWhereSchemaFor(Transaction)) where?: Where<Transaction>,
   ): Promise<Count> {
-    return this.userRepository.transactions(id).delete(where);
+    return this.clientRepository.transactions(id).delete(where);
   }
 }
