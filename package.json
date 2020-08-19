@@ -56,9 +56,7 @@
     "isemail": "^3.2.0",
     "lodash": "^4.17.19",
     "loopback-connector-mysql": "^5.4.4",
-    "tslib": "^2.0.0"
-  },
-  "devDependencies": {
+    "tslib": "^2.0.0",
     "@loopback/build": "^6.2.0",
     "source-map-support": "^0.5.19",
     "@loopback/testlab": "^3.2.2",
@@ -66,5 +64,6 @@
     "@loopback/eslint-config": "^9.0.0",
     "eslint": "^7.6.0",
     "typescript": "~3.9.7"
-  }
+  },
+  "devDependencies": {}
 }
