@@ -11,6 +11,16 @@ const config = {
   database: 'dcgnan9dh22310'
 };
 
+// const config = {
+//   name: 'postegressConnector',
+//   connector: 'postgresql',
+//   host: 'localhost',
+//   port: 5432,
+//   user: 'postgres',
+//   password: 'admin',
+//   database: 'owmenperfume'
+// };
+
 // Observe application's life cycle to disconnect the datasource when
 // application is stopped. This allows the application to be shut down
 // gracefully. The `stop()` method is inherited from `juggler.DataSource`.

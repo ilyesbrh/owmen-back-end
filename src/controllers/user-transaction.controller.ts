@@ -86,7 +86,9 @@ export class UserTransactionController {
     else
       client.average = (client.average + transaction.value) / 2;
 
-    if (client.count === 6) {
+    client.average = Math.floor(client.average);
+
+    if (client.count === 5) {
       client.count = 0;
     }
 
