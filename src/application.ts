@@ -7,6 +7,7 @@ import {RepositoryMixin} from '@loopback/repository';
 import {OpenApiSpec, RestApplication} from '@loopback/rest';
 import {RestExplorerBindings, RestExplorerComponent} from '@loopback/rest-explorer';
 import {ServiceMixin} from '@loopback/service-proxy';
+import express, {Request, Response} from 'express';
 import path from 'path';
 import {PasswordHasherBindings, TokenServiceBindings, TokenServiceConstants} from './key';
 import {MySequence} from './sequence';
@@ -14,12 +15,16 @@ import {BcryptHasher, JWTService, MyUserService} from './services';
 import {SECURITY_SPEC} from './utils/security-spec';
 
 
+const legacyApp = express();
+
+// your existing Express routes
+legacyApp.get('*', function (_req: Request, res: Response) {
+  res.sendFile(path.join(__dirname + '/../public/index.html'));
+});
 
 export {ApplicationConfig};
 
-export class OwmenApplication extends BootMixin(
-  ServiceMixin(RepositoryMixin(RestApplication)),
-) {
+export class OwmenApplication extends BootMixin(ServiceMixin(RepositoryMixin(RestApplication))) {
   constructor(options: ApplicationConfig = {}) {
     super(options);
 
@@ -27,6 +32,7 @@ export class OwmenApplication extends BootMixin(
     this.sequence(MySequence);
 
     // Set up default home page
+    this.mountExpressRouter('/app', legacyApp);
     this.static('/', path.join(__dirname, '../public'));
 
     // Customize @loopback/rest-explorer configuration here
